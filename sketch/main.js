@@ -9,7 +9,7 @@ const container = document.body.querySelector('.container-canvas');
 let video;
 let faceMesh;
 let faces = [];
-let canvasW, canvasH;
+//let canvasW, canvasH;
 
 let mouthDistance = 0; // 입 열고 닫을 때 거리 계산
 let prevMouthState = 'Closed'; // 이전 상태 저장
