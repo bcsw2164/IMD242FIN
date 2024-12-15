@@ -19,18 +19,36 @@ const { Engine, Composite, Bodies, Constraint, Body } = Matter;
 let engine;
 let world;
 let chain = [];
+let customFont;
 
 // 그룹 정의
 const wordGroups = [
-  ['아', '진', '짜', '요'],
-  ['배', '고', '파'],
-  ['졸', '려'],
-  ['아', '니', '근', '데'],
-  ['아', '개', '웃', '겨'],
-  ['집', '가', '고', '싶', '다'],
+  {
+    words: ['아', '진', '짜', '요'],
+    textColor: '#404040',
+    shapeColor: '#D9D9D9',
+  },
+  { words: ['배', '고', '파'], textColor: '#335095', shapeColor: '#6D8DD8' },
+  { words: ['졸', '려'], textColor: '#8E1618', shapeColor: '#FA6F71' },
+  {
+    words: ['아', '니', '근', '데'],
+    textColor: '#A87613',
+    shapeColor: '#F9DA61',
+  },
+  {
+    words: ['아', '개', '웃', '겨'],
+    textColor: '#2F4937',
+    shapeColor: '#55A16C',
+  },
+  {
+    words: ['집', '가', '고', '싶', '다'],
+    textColor: '#7D2FA7',
+    shapeColor: '#AB5CD6',
+  },
 ];
 
 function preload() {
+  customFont = loadFont('LINESeedKR-Bd.ttf');
   faceMesh = ml5.faceMesh({ flipped: true });
 }
 
@@ -124,15 +142,15 @@ async function createWords(x, y, selectedGroup) {
   let lastBody = null;
 
   // 선택된 그룹의 단어들을 순서대로 생성
-  for (let i = 0; i < selectedGroup.length; i++) {
-    const textValue = selectedGroup[i];
+  for (let i = 0; i < selectedGroup.words.length; i++) {
+    const textValue = selectedGroup.words[i];
     const textSizeValue = baseSize + random(-5, 5); // 체인 내에서 크기 편차 제한
     const circleSize = textSizeValue * 1.5; // 원 크기는 텍스트 크기의 1.5배
 
     // 처음 생성은 입 중앙 기준
-    const offsetX = (i - (selectedGroup.length - 1) / 2) * gap; // 그룹 가운데 정렬
+    const offsetX = (i - (selectedGroup.words.length - 1) / 2) * gap; // 그룹 가운데 정렬
     const circleBody = Bodies.circle(x, y, circleSize / 2, {
-      render: { fillStyle: '#ffffff' },
+      render: { fillStyle: selectedGroup.shapeColor }, // 그룹 색상 적용
       friction: 1.0, // 높은 마찰로 안정성 증가
       restitution: 0.0, // 반발력 제거
       frictionAir: 0.3, // 공기 저항 증가
@@ -140,6 +158,7 @@ async function createWords(x, y, selectedGroup) {
 
     circleBody.label = textValue; // 텍스트 레이블 설정
     circleBody.size = textSizeValue; // 텍스트 크기 저장
+    circleBody.textColor = selectedGroup.textColor; // 텍스트 색상 저장
 
     // 초기 밀림 효과 적용
     Body.applyForce(
@@ -155,8 +174,8 @@ async function createWords(x, y, selectedGroup) {
         bodyA: lastBody,
         bodyB: circleBody,
         length: circleSize * 0.8, // 텍스트 크기에 따라 연결 거리 설정
-        stiffness: 0.6, // 강한 연결로 안정성 증가
-        damping: 0.7, // 진동 감소
+        stiffness: 0.9, // 강한 연결로 안정성 증가
+        damping: 0.9, // 진동 감소
       });
       Composite.add(world, link);
       chain.push(link);
@@ -185,15 +204,16 @@ function renderChain() {
   for (let body of bodies) {
     if (body.circleRadius) {
       const { x, y } = body.position;
-      fill(255);
+      fill(body.render.fillStyle || '#FFFFFF'); // 원 색상
       noStroke();
       ellipse(x, y, body.circleRadius * 2); // 텍스트 뒤의 원
 
-      fill(0);
+      fill(body.textColor || '#000000'); // 텍스트 색상
       textAlign(CENTER, CENTER);
       textSize(body.size || 24); // 랜덤 크기의 텍스트
+      textFont(customFont);
       textStyle(BOLD);
-      text(body.label || '', x, y); // 텍스트 출력
+      text(body.label || '', x, y - body.size * 0.2); // 텍스트 출력
     }
   }
 }
