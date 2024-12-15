@@ -1,6 +1,6 @@
 // 종횡비를 고정하고 싶을 경우: 아래 두 변수를 0이 아닌 원하는 종, 횡 비율값으로 설정.
 // 종횡비를 고정하고 싶지 않을 경우: 아래 두 변수 중 어느하나라도 0으로 설정.
-const aspectW = 4;
+const aspectW = 0;
 const aspectH = 3;
 // html에서 클래스명이 container-canvas인 첫 엘리먼트: 컨테이너 가져오기.
 const container = document.body.querySelector('.container-canvas');
@@ -9,6 +9,7 @@ const container = document.body.querySelector('.container-canvas');
 let video;
 let faceMesh;
 let faces = [];
+let canvasW, canvasH;
 
 let mouthDistance = 0; // 입 열고 닫을 때 거리 계산
 let prevMouthState = 'Closed'; // 이전 상태 저장
@@ -82,7 +83,10 @@ function setup() {
     );
   }
 
-  video = createCapture(VIDEO, { flipped: true });
+  //video = createCapture(VIDEO, { flipped: true });
+  video = createCapture(VIDEO, { flipped: true }, () => {
+    video.size(width, height); // 비디오 크기를 캔버스에 맞춤
+  });
   video.hide();
 
   faceMesh.detectStart(video, gotFaces);
@@ -309,6 +313,7 @@ function windowResized() {
   // 컨테이너의 크기와 일치하도록 캔버스 크기를 조정.
   if (aspectW === 0 || aspectH === 0) {
     resizeCanvas(containerW, containerH);
+    //if (video) video.size(containerW, containerH);
   }
   // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 클 경우:
   // 컨테이너의 세로길이에 맞춰 종횡비대로 캔버스 크기를 조정.
