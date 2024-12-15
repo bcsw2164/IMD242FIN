@@ -1,5 +1,5 @@
 // 종횡비를 고정하고 싶을 경우: 아래 두 변수를 0이 아닌 원하는 종, 횡 비율값으로 설정.
-// 종횡비를 고정하고 싶지 않을 경우: 아래 두 변수 중 어느 하나라도 0으로 설정.
+// 종횡비를 고정하고 싶지 않을 경우: 아래 두 변수 중 어느하나라도 0으로 설정.
 const aspectW = 4;
 const aspectH = 3;
 // html에서 클래스명이 container-canvas인 첫 엘리먼트: 컨테이너 가져오기.
@@ -9,12 +9,18 @@ let video;
 let faceMesh;
 let faces = [];
 
+let mouthDistance = 0; // 입의 거리 저장용 변수
+
 function preload() {
   faceMesh = ml5.faceMesh({ flipped: true });
 }
 
 function mousePressed() {
   console.log(faces);
+}
+
+function gotFaces(results) {
+  faces = results;
 }
 
 function setup() {
@@ -29,7 +35,6 @@ function setup() {
   // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 클 경우:
   // 컨테이너의 세로길이에 맞춰 종횡비대로 캔버스를 생성하고, 컨테이너의 자녀로 설정.
   else if (containerW / containerH > aspectW / aspectH) {
-    container;
     createCanvas((containerH * aspectW) / aspectH, containerH).parent();
   }
   // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 작거나 같을 경우:
@@ -39,6 +44,7 @@ function setup() {
       container
     );
   }
+
   video = createCapture(VIDEO, { flipped: true });
   video.hide();
 
@@ -52,23 +58,64 @@ function setup() {
 function init() {}
 
 function draw() {
-  //background('white');
-  //circle(mouseX, mouseY, 50);
+  background(220);
   image(video, 0, 0, width, height);
+
   if (faces.length > 0) {
     for (let face of faces) {
-      for (let i = 0; i < face, keypoints.length; i++) {
+      for (let i = 0; i < face.keypoints.length; i++) {
         let keypoint = face.keypoints[i];
-        fill(255, 255, 0);
-        noStroke();
-        circle(keypoint.x, keypoint.y, 16);
+
+        // 13번과 14번 얼굴 키포인트만 그리기
+        if (i === 13 || i === 14) {
+          let x = map(keypoint.x, 0, video.width, 0, width);
+          let y = map(keypoint.y, 0, video.height, 0, height);
+
+          // 입술 좌표에 빨간색, 나머지 키포인트는 노란색
+          if (i === 13 || i === 14) {
+            fill(255, 0, 0); // 빨간색
+          }
+
+          noStroke();
+          circle(x, y, 10); // 13번과 14번만 원으로 표시
+        }
       }
+
+      // 입술의 위쪽과 아래쪽 지점
+      const topLip = face.keypoints[13];
+      const bottomLip = face.keypoints[14];
+
+      // 입술 좌표를 캔버스 좌표로 변환
+      const topLipX = map(topLip.x, 0, video.width, 0, width);
+      const topLipY = map(topLip.y, 0, video.height, 0, height);
+      const bottomLipX = map(bottomLip.x, 0, video.width, 0, width);
+      const bottomLipY = map(bottomLip.y, 0, video.height, 0, height);
+
+      // 입술 두 지점 사이의 거리 계산
+      mouthDistance = dist(topLipX, topLipY, bottomLipX, bottomLipY);
+
+      // 입의 거리 값 소수점 없이 정수로 변경
+      mouthDistance = int(mouthDistance); // 정수로 변환
+
+      // "closed" 또는 "opened" 상태 결정
+      let mouthState = '';
+      if (mouthDistance >= 1 && mouthDistance <= 10) {
+        mouthState = 'Closed';
+      } else if (mouthDistance > 10) {
+        mouthState = 'Opened';
+      }
+
+      // 화면에 입술 거리 및 상태 표시
+      fill(0);
+      textSize(24);
+      textAlign(CENTER, CENTER);
+      text(
+        'Mouth Distance: ' + mouthDistance + ' (' + mouthState + ')',
+        width / 2,
+        height - 20
+      );
     }
   }
-}
-
-function gotFaces(results) {
-  faces = results;
 }
 
 function windowResized() {
@@ -90,7 +137,4 @@ function windowResized() {
   else {
     resizeCanvas(containerW, (containerW * aspectH) / aspectW);
   }
-  // 위 과정을 통해 캔버스 크기가 조정된 경우, 다시 처음부터 그려야할 수도 있다.
-  // 이런 경우 setup()의 일부 구문을 init()에 작성해서 여기서 실행하는게 편리하다.
-  // init();
 }
