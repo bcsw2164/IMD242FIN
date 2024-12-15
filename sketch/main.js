@@ -5,6 +5,17 @@ const aspectH = 3;
 // html에서 클래스명이 container-canvas인 첫 엘리먼트: 컨테이너 가져오기.
 const container = document.body.querySelector('.container-canvas');
 // 필요에 따라 이하에 변수 생성.
+let video;
+let faceMesh;
+let faces = [];
+
+function preload() {
+  faceMesh = ml5.faceMesh({ flipped: true });
+}
+
+function mousePressed() {
+  console.log(faces);
+}
 
 function setup() {
   // 컨테이너의 현재 위치, 크기 등의 정보 가져와서 객체구조분해할당을 통해 너비, 높이 정보를 변수로 추출.
@@ -18,9 +29,8 @@ function setup() {
   // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 클 경우:
   // 컨테이너의 세로길이에 맞춰 종횡비대로 캔버스를 생성하고, 컨테이너의 자녀로 설정.
   else if (containerW / containerH > aspectW / aspectH) {
-    createCanvas((containerH * aspectW) / aspectH, containerH).parent(
-      container
-    );
+    container;
+    createCanvas((containerH * aspectW) / aspectH, containerH).parent();
   }
   // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 작거나 같을 경우:
   // 컨테이너의 가로길이에 맞춰 종횡비대로 캔버스를 생성하고, 컨테이너의 자녀로 설정.
@@ -29,6 +39,11 @@ function setup() {
       container
     );
   }
+  video = createCapture(VIDEO, { flipped: true });
+  video.hide();
+
+  faceMesh.detectStart(video, gotFaces);
+
   init();
   // createCanvas를 제외한 나머지 구문을 여기 혹은 init()에 작성.
 }
@@ -37,8 +52,23 @@ function setup() {
 function init() {}
 
 function draw() {
-  background('white');
-  circle(mouseX, mouseY, 50);
+  //background('white');
+  //circle(mouseX, mouseY, 50);
+  image(video, 0, 0, width, height);
+  if (faces.length > 0) {
+    for (let face of faces) {
+      for (let i = 0; i < face, keypoints.length; i++) {
+        let keypoint = face.keypoints[i];
+        fill(255, 255, 0);
+        noStroke();
+        circle(keypoint.x, keypoint.y, 16);
+      }
+    }
+  }
+}
+
+function gotFaces(results) {
+  faces = results;
 }
 
 function windowResized() {
