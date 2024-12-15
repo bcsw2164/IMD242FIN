@@ -10,6 +10,25 @@ let faceMesh;
 let faces = [];
 
 let mouthDistance = 0; // 입의 거리 저장용 변수
+let prevMouthState = 'Closed'; // 이전 상태 저장
+let lastCreationTime = 0; // 마지막 그룹 생성 시간
+const minInterval = 500; // 그룹 생성 간 최소 시간 간격 (밀리초)
+
+// Matter.js 엔진 및 월드 설정
+const { Engine, Composite, Bodies, Constraint, Body } = Matter;
+let engine;
+let world;
+let chain = [];
+
+// 그룹 정의
+const wordGroups = [
+  ['아', '진', '짜', '요'],
+  ['배', '고', '파'],
+  ['졸', '려'],
+  ['아', '니', '근', '데'],
+  ['아', '개', '웃', '겨'],
+  ['집', '가', '고', '싶', '다'],
+];
 
 function preload() {
   faceMesh = ml5.faceMesh({ flipped: true });
@@ -24,22 +43,14 @@ function gotFaces(results) {
 }
 
 function setup() {
-  // 컨테이너의 현재 위치, 크기 등의 정보 가져와서 객체구조분해할당을 통해 너비, 높이 정보를 변수로 추출.
   const { width: containerW, height: containerH } =
     container.getBoundingClientRect();
-  // 종횡비가 설정되지 않은 경우:
-  // 컨테이너의 크기와 일치하도록 캔버스를 생성하고, 컨테이너의 자녀로 설정.
+
   if (aspectW === 0 || aspectH === 0) {
     createCanvas(containerW, containerH).parent(container);
-  }
-  // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 클 경우:
-  // 컨테이너의 세로길이에 맞춰 종횡비대로 캔버스를 생성하고, 컨테이너의 자녀로 설정.
-  else if (containerW / containerH > aspectW / aspectH) {
+  } else if (containerW / containerH > aspectW / aspectH) {
     createCanvas((containerH * aspectW) / aspectH, containerH).parent();
-  }
-  // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 작거나 같을 경우:
-  // 컨테이너의 가로길이에 맞춰 종횡비대로 캔버스를 생성하고, 컨테이너의 자녀로 설정.
-  else {
+  } else {
     createCanvas(containerW, (containerW * aspectH) / aspectW).parent(
       container
     );
@@ -50,12 +61,18 @@ function setup() {
 
   faceMesh.detectStart(video, gotFaces);
 
+  // Matter.js 엔진 초기화
+  engine = Engine.create();
+  world = engine.world;
+
+  createBounds(width, height); // 벽 생성
   init();
-  // createCanvas를 제외한 나머지 구문을 여기 혹은 init()에 작성.
 }
 
-// windowResized()에서 setup()에 준하는 구문을 실행해야할 경우를 대비해 init이라는 명칭의 함수를 만들어 둠.
-function init() {}
+function init() {
+  // Matter.js 물리 엔진 중력 설정 (위로 작용하도록 y 값을 음수로 설정)
+  engine.world.gravity.y = -1; // 중력을 위로 설정
+}
 
 function draw() {
   background(220);
@@ -63,78 +80,148 @@ function draw() {
 
   if (faces.length > 0) {
     for (let face of faces) {
-      for (let i = 0; i < face.keypoints.length; i++) {
-        let keypoint = face.keypoints[i];
-
-        // 13번과 14번 얼굴 키포인트만 그리기
-        if (i === 13 || i === 14) {
-          let x = map(keypoint.x, 0, video.width, 0, width);
-          let y = map(keypoint.y, 0, video.height, 0, height);
-
-          // 입술 좌표에 빨간색, 나머지 키포인트는 노란색
-          if (i === 13 || i === 14) {
-            fill(255, 0, 0); // 빨간색
-          }
-
-          noStroke();
-          circle(x, y, 10); // 13번과 14번만 원으로 표시
-        }
-      }
-
-      // 입술의 위쪽과 아래쪽 지점
       const topLip = face.keypoints[13];
       const bottomLip = face.keypoints[14];
 
-      // 입술 좌표를 캔버스 좌표로 변환
       const topLipX = map(topLip.x, 0, video.width, 0, width);
       const topLipY = map(topLip.y, 0, video.height, 0, height);
       const bottomLipX = map(bottomLip.x, 0, video.width, 0, width);
       const bottomLipY = map(bottomLip.y, 0, video.height, 0, height);
 
-      // 입술 두 지점 사이의 거리 계산
       mouthDistance = dist(topLipX, topLipY, bottomLipX, bottomLipY);
+      mouthDistance = int(mouthDistance);
 
-      // 입의 거리 값 소수점 없이 정수로 변경
-      mouthDistance = int(mouthDistance); // 정수로 변환
-
-      // "closed" 또는 "opened" 상태 결정
       let mouthState = '';
-      if (mouthDistance >= 1 && mouthDistance <= 10) {
+      if (mouthDistance >= 1 && mouthDistance <= 15) {
         mouthState = 'Closed';
-      } else if (mouthDistance > 10) {
+      } else if (mouthDistance > 15) {
         mouthState = 'Opened';
       }
 
-      // 화면에 입술 거리 및 상태 표시
+      const currentTime = millis();
+      if (
+        mouthState === 'Opened' &&
+        prevMouthState === 'Closed' &&
+        currentTime - lastCreationTime > minInterval
+      ) {
+        const selectedGroup = random(wordGroups);
+        createWords(topLipX, topLipY, selectedGroup);
+        lastCreationTime = currentTime;
+      }
+
+      prevMouthState = mouthState;
+    }
+  }
+
+  Engine.update(engine);
+  renderChain();
+}
+
+async function createWords(x, y, selectedGroup) {
+  // 체인의 랜덤 크기 결정
+  const baseSize = random(30, 70); // 그룹 내의 기본 크기
+  const gap = 50; // 개체 간 간격
+  let lastBody = null;
+
+  // 선택된 그룹의 단어들을 순서대로 생성
+  for (let i = 0; i < selectedGroup.length; i++) {
+    const textValue = selectedGroup[i];
+    const textSizeValue = baseSize + random(-5, 5); // 체인 내에서 크기 편차 제한
+    const circleSize = textSizeValue * 1.5; // 원 크기는 텍스트 크기의 1.5배
+
+    // 처음 생성은 입 중앙 기준
+    const offsetX = (i - (selectedGroup.length - 1) / 2) * gap; // 그룹 가운데 정렬
+    const circleBody = Bodies.circle(x, y, circleSize / 2, {
+      render: { fillStyle: '#ffffff' },
+      friction: 1.0, // 높은 마찰로 안정성 증가
+      restitution: 0.0, // 반발력 제거
+      frictionAir: 0.3, // 공기 저항 증가
+    });
+
+    circleBody.label = textValue; // 텍스트 레이블 설정
+    circleBody.size = textSizeValue; // 텍스트 크기 저장
+
+    // 초기 밀림 효과 적용
+    Body.applyForce(
+      circleBody,
+      { x: circleBody.position.x, y: circleBody.position.y },
+      { x: offsetX * 0.001, y: 0 }
+    );
+
+    Composite.add(world, circleBody);
+
+    if (lastBody) {
+      const link = Constraint.create({
+        bodyA: lastBody,
+        bodyB: circleBody,
+        length: circleSize * 0.8, // 텍스트 크기에 따라 연결 거리 설정
+        stiffness: 0.6, // 강한 연결로 안정성 증가
+        damping: 0.7, // 진동 감소
+      });
+      Composite.add(world, link);
+      chain.push(link);
+    }
+
+    lastBody = circleBody;
+
+    // 개체 생성 사이에 딜레이 추가로 생동감 부여
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+function renderChain() {
+  for (let i = 0; i < chain.length; i++) {
+    const link = chain[i];
+
+    const posA = link.bodyA.position;
+    const posB = link.bodyB.position;
+
+    stroke(0);
+    strokeWeight(2);
+    line(posA.x, posA.y, posB.x, posB.y);
+  }
+
+  const bodies = Composite.allBodies(world);
+  for (let body of bodies) {
+    if (body.circleRadius) {
+      const { x, y } = body.position;
+      fill(255);
+      noStroke();
+      ellipse(x, y, body.circleRadius * 2); // 텍스트 뒤의 원
+
       fill(0);
-      textSize(24);
       textAlign(CENTER, CENTER);
-      text(
-        'Mouth Distance: ' + mouthDistance + ' (' + mouthState + ')',
-        width / 2,
-        height - 20
-      );
+      textSize(body.size || 24); // 랜덤 크기의 텍스트
+      textStyle(BOLD);
+      text(body.label || '', x, y); // 텍스트 출력
     }
   }
 }
 
+function createBounds(width, height) {
+  // 양옆에 벽을 추가하고 천장과 바닥은 뚫음
+  const thickness = 50;
+  const bounds = [
+    Bodies.rectangle(-thickness / 2, height / 2, thickness, height, {
+      isStatic: true,
+    }), // 왼쪽 벽
+    Bodies.rectangle(width + thickness / 2, height / 2, thickness, height, {
+      isStatic: true,
+    }), // 오른쪽 벽
+  ];
+
+  Composite.add(world, bounds);
+}
+
 function windowResized() {
-  // 컨테이너의 현재 위치, 크기 등의 정보 가져와서 객체구조분해할당을 통해 너비, 높이 정보를 변수로 추출.
   const { width: containerW, height: containerH } =
     container.getBoundingClientRect();
-  // 종횡비가 설정되지 않은 경우:
-  // 컨테이너의 크기와 일치하도록 캔버스 크기를 조정.
+
   if (aspectW === 0 || aspectH === 0) {
     resizeCanvas(containerW, containerH);
-  }
-  // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 클 경우:
-  // 컨테이너의 세로길이에 맞춰 종횡비대로 캔버스 크기를 조정.
-  else if (containerW / containerH > aspectW / aspectH) {
+  } else if (containerW / containerH > aspectW / aspectH) {
     resizeCanvas((containerH * aspectW) / aspectH, containerH);
-  }
-  // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 작거나 같을 경우:
-  // 컨테이너의 가로길이에 맞춰 종횡비대로 캔버스 크기를 조정.
-  else {
+  } else {
     resizeCanvas(containerW, (containerW * aspectH) / aspectW);
   }
 }
