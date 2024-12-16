@@ -1,6 +1,6 @@
 // 종횡비를 고정하고 싶을 경우: 아래 두 변수를 0이 아닌 원하는 종, 횡 비율값으로 설정.
-// 종횡비를 고정하고 싶지 않을 경우: 아래 두 변수 중 어느하나라도 0으로 설정.
-const aspectW = 0;
+// 종횡비를 고정하고 싶지 않을 경우: 아래 두 변수 중 어느 하나라도 0으로 설정.
+const aspectW = 4;
 const aspectH = 3;
 // html에서 클래스명이 container-canvas인 첫 엘리먼트: 컨테이너 가져오기.
 const container = document.body.querySelector('.container-canvas');
@@ -9,7 +9,6 @@ const container = document.body.querySelector('.container-canvas');
 let video;
 let faceMesh;
 let faces = [];
-//let canvasW, canvasH;
 
 let mouthDistance = 0; // 입 열고 닫을 때 거리 계산
 let prevMouthState = 'Closed'; // 이전 상태 저장
@@ -54,10 +53,6 @@ function preload() {
   faceMesh = ml5.faceMesh({ flipped: true });
 }
 
-//function mousePressed() {
-//console.log(faces);
-//}
-
 function gotFaces(results) {
   faces = results;
 }
@@ -74,39 +69,41 @@ function setup() {
   // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 클 경우:
   // 컨테이너의 세로길이에 맞춰 종횡비대로 캔버스를 생성하고, 컨테이너의 자녀로 설정.
   else if (containerW / containerH > aspectW / aspectH) {
-    createCanvas((containerH * aspectW) / aspectH, containerH).parent();
-  } // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 작거나 같을 경우:
+    createCanvas((containerH * aspectW) / aspectH, containerH).parent(
+      container
+    );
+  }
+  // 컨테이너의 가로 비율이 설정한 종횡비의 가로 비율보다 작거나 같을 경우:
   // 컨테이너의 가로길이에 맞춰 종횡비대로 캔버스를 생성하고, 컨테이너의 자녀로 설정.
   else {
     createCanvas(containerW, (containerW * aspectH) / aspectW).parent(
       container
     );
   }
+  init();
 
   video = createCapture(VIDEO, { flipped: true });
-  // video = createCapture(VIDEO, { flipped: true }, () => {
-  //   video.size(width, height); // 비디오 크기를 캔버스에 맞춤
-  // });
-  video.size(width, height);
+  //video.size(width, height);
   video.hide();
 
   faceMesh.detectStart(video, gotFaces);
 
+  // createCanvas를 제외한 나머지 구문을 여기 혹은 init()에 작성.
+}
+
+// windowResized()에서 setup()에 준하는 구문을 실행해야할 경우를 대비해 init이라는 명칭의 함수를 만들어 둠.
+function init() {
   // Matter.js 엔진 초기화
   engine = Engine.create();
   world = engine.world;
 
-  createBounds(width, height); // 벽 생성
-  init();
-}
-
-// windowResized()에서 setup()에 준하는 구문을 실행해야할 경우를 대비해 init이라는 명칭의 함수를 만들어 둠
-function init() {
   engine.world.gravity.y = -1;
+
+  createBounds(width, height); // 벽 생성
 }
 
 function draw() {
-  background(220);
+  background('white');
   image(video, 0, 0, width, height);
 
   if (faces.length > 0) {
@@ -193,7 +190,6 @@ function draw() {
   renderChain();
 }
 
-// 다크써클 드로잉, 레이어를 사용해서 그라데이션 효과를 줌
 function drawDarkCircle(x, y, width, height, layers) {
   noStroke();
   for (let i = 0; i < layers; i++) {
@@ -271,7 +267,6 @@ function renderChain() {
     strokeWeight(0);
     line(posA.x, posA.y, posB.x, posB.y);
   }
-
   const bodies = Composite.allBodies(world);
   //world 안에 존재하는 모든 body 객체 배열 반환
   for (let body of bodies) {
