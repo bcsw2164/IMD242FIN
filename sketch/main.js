@@ -32,7 +32,7 @@ const wordGroups = [
   { words: ['배', '고', '파'], textColor: '#335095', shapeColor: '#6D8DD8' },
   { words: ['졸', '려'], textColor: '#8E1618', shapeColor: '#FA6F71' },
   {
-    words: ['아', '니', '근', '데'],
+    words: ['아', '니', '근', '데', '진', '짜'],
     textColor: '#A87613',
     shapeColor: '#F9DA61',
   },
@@ -203,7 +203,7 @@ function drawDarkCircle(x, y, width, height, layers) {
 // 그룹 내의 각 글자들을 주어진 위치를 기준으로 물리적으로 배치하고 체인으로 연결함
 // **async 를 사용하면 await 를 사용할 수 있음 setTimeout을 이용한 지연을 처리할 수 있게됨 (솔직히 아직 이해는안가는..)
 async function createWords(x, y, selectedGroup) {
-  const baseSize = random(30, 70); // 크기는 여기서 조절
+  const baseSize = random(30, 90); // 크기는 여기서 조절
   const gap = 50; // 간격 조절
   let lastBody = null;
 
